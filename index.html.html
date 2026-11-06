@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer Studio 3D Immersivo - Senza Stelle</title>
+    <style>
+        /* === STILI CSS E INTERFACCIA === */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #010104;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1; 
+            pointer-events: auto; 
+        }
+
+        .glass-panel {
+            background: rgba(20, 20, 30, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 28px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255,255,255,0.05);
+            pointer-events: auto; 
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            padding: 40px 50px;
+            text-align: center;
+            min-width: 320px;
+            transition: border-color 0.8s ease, box-shadow 0.8s ease;
+        }
+
+        #settings-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            padding: 30px 40px;
+            width: 300px;
+            display: none; 
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #settings-panel.active {
+            display: flex;
+        }
+
+        #settings-panel h2 {
+            margin-top: 0;
+            font-weight: 400;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+        }
+
+        input[type="number"], select {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 8px;
+            width: 80px;
+            font-family: inherit;
+        }
+
+        select {
+            width: 120px;
+            cursor: pointer;
+        }
+        
+        select option {
+            background: #1a1a2e; 
+            color: white;
+        }
+
+        #btn-open-settings {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            z-index: 15;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            color: white;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        #btn-open-settings:hover {
+            transform: rotate(90deg);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #status {
+            font-size: 1.1rem;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: 700;
+            transition: color 0.8s ease;
+        }
+
+        #timer {
+            font-size: 6rem;
+            font-weight: 200;
+            margin: 10px 0;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        #sessions {
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+            color: #aaaaaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #ffffff;
+            border-radius: 10px;
+            transition: width 1s linear, background-color 0.8s ease;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-full-width {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <button id="btn-open-settings" title="Impostazioni">⚙️</button>
+
+    <div id="settings-panel" class="glass-panel">
+        <h2>Impostazioni</h2>
+        
+        <div class="setting-row">
+            <label for="input-study">Studio (min):</label>
+            <input type="number" id="input-study" value="25" min="1" max="120">
+        </div>
+        
+        <div class="setting-row">
+            <label for="input-break">Pausa (min):</label>
+            <input type="number" id="input-break" value="5" min="1" max="60">
+        </div>
+        
+        <div class="setting-row">
+            <label for="select-shape">Forma 3D:</label>
+            <select id="select-shape">
+                <option value="octahedron">Ottuedro</option>
+                <option value="cube">Cubo Magico</option>
+                <option value="sphere">Sfera</option>
+            </select>
+        </div>
+
+        <button id="btn-toggle-sound" class="btn-full-width">Suono: ATTIVO 🔊</button>
+        <button id="btn-save-settings" class="btn-full-width" style="background: rgba(138, 43, 226, 0.3);">Applica & Chiudi</button>
+    </div>
+
+    <div id="ui-container" class="glass-panel">
+        <div id="status">Studio</div>
+        <h1 id="timer">25:00</h1>
+        <div id="sessions">Sessioni completate: 0</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        
+        <div class="controls">
+            <button id="btn-start">Inizia</button>
+            <button id="btn-pause" disabled>Pausa</button>
+            <button id="btn-skip">Salta</button>
+            <button id="btn-reset">Reset</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        /* =========================================================
+           1. CONFIGURAZIONE E AUDIO
+           ========================================================= */
+        const CONFIG = {
+            studyTimeMinutes: 25,     
+            breakTimeMinutes: 5,      
+            colorStudy: 0x8a2be2,     
+            colorBreak: 0x00ffaa,     
+            colorUIStudy: "#b873ff",
+            colorUIBreak: "#5effc4",
+            soundEnabled: true
+        };
+
+        let sessionCount = parseInt(localStorage.getItem('pomodoroSessions')) || 0;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playChime() {
+            if (!CONFIG.soundEnabled) return; 
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 1); 
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 1.5);
+        }
+
+        /* =========================================================
+           2. LOGICA DEL TIMER E UI
+           ========================================================= */
+        let totalCurrentTime = CONFIG.studyTimeMinutes * 60;
+        let timeLeft = totalCurrentTime;
+        let isStudyMode = true;
+        let timerInterval = null;
+        let isRunning = false;
+
+        const displayTimer = document.getElementById('timer');
+        const displayStatus = document.getElementById('status');
+        const displaySessions = document.getElementById('sessions');
+        const progressBar = document.getElementById('progress');
+        const uiContainer = document.getElementById('ui-container');
+        
+        const btnStart = document.getElementById('btn-start');
+        const btnPause = document.getElementById('btn-pause');
+        const btnSkip = document.getElementById('btn-skip');
+        const btnReset = document.getElementById('btn-reset');
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function updateUI() {
+            displayTimer.textContent = formatTime(timeLeft);
+            const percent = ((totalCurrentTime - timeLeft) / totalCurrentTime) * 100;
+            progressBar.style.width = `${percent}%`;
+
+            if (isStudyMode) {
+                displayStatus.textContent = "Focus / Studio";
+                displayStatus.style.color = CONFIG.colorUIStudy; 
+                progressBar.style.backgroundColor = CONFIG.colorUIStudy;
+                uiContainer.style.boxShadow = `0 15px 35px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(138, 43, 226, 0.15)`;
+            } else {
+                displayStatus.textContent = "Relax / Pausa";
+                displayStatus.style.color = CONFIG.colorUIBreak; 
+                progressBar.style.backgroundColor = CONFIG.colorUIBreak;
+                uiContainer.style.boxShadow = `0 15px 35px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 255, 170, 0.15)`;
+            }
+            displaySessions.textContent = `Sessioni completate: ${sessionCount}`;
+            btnStart.disabled = isRunning;
+            btnPause.disabled = !isRunning;
+        }
+
+        function switchPhase() {
+            isStudyMode = !isStudyMode;
+            if (!isStudyMode) {
+                totalCurrentTime = CONFIG.breakTimeMinutes * 60;
+                sessionCount++;
+                localStorage.setItem('pomodoroSessions', sessionCount); 
+                if(typeof changeColor === 'function') changeColor(CONFIG.colorBreak);
+            } else {
+                totalCurrentTime = CONFIG.studyTimeMinutes * 60;
+                if(typeof changeColor === 'function') changeColor(CONFIG.colorStudy);
+            }
+            timeLeft = totalCurrentTime;
+            playChime();
+            updateUI();
+        }
+
+        function tick() {
+            if (timeLeft > 0) {
+                timeLeft--;
+                updateUI();
+            } else {
+                switchPhase();
+            }
+        }
+
+        btnStart.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume(); 
+            if (!isRunning) {
+                isRunning = true;
+                updateUI();
+                timerInterval = setInterval(tick, 1000);
+            }
+        });
+
+        btnPause.addEventListener('click', () => {
+            if (isRunning) {
+                clearInterval(timerInterval);
+                isRunning = false;
+                updateUI();
+            }
+        });
+
+        btnSkip.addEventListener('click', () => switchPhase());
+
+        btnReset.addEventListener('click', () => {
+            clearInterval(timerInterval);
+            isRunning = false;
+            isStudyMode = true;
+            totalCurrentTime = CONFIG.studyTimeMinutes * 60;
+            timeLeft = totalCurrentTime;
+            if(typeof changeColor === 'function') changeColor(CONFIG.colorStudy);
+            updateUI();
+        });
+
+        updateUI();
+
+        /* =========================================================
+           3. GESTIONE IMPOSTAZIONI
+           ========================================================= */
+        const settingsPanel = document.getElementById('settings-panel');
+        const btnOpenSettings = document.getElementById('btn-open-settings');
+        const btnSaveSettings = document.getElementById('btn-save-settings');
+        const btnToggleSound = document.getElementById('btn-toggle-sound');
+        const inputStudy = document.getElementById('input-study');
+        const inputBreak = document.getElementById('input-break');
+        const selectShape = document.getElementById('select-shape');
+
+        btnOpenSettings.addEventListener('click', () => {
+            settingsPanel.classList.add('active');
+            uiContainer.style.opacity = '0.2'; 
+            uiContainer.style.pointerEvents = 'none';
+        });
+
+        btnSaveSettings.addEventListener('click', () => {
+            CONFIG.studyTimeMinutes = parseInt(inputStudy.value) || 25;
+            CONFIG.breakTimeMinutes = parseInt(inputBreak.value) || 5;
+            
+            if(typeof update3DShape === 'function') {
+                update3DShape(selectShape.value);
+            }
+
+            settingsPanel.classList.remove('active');
+            uiContainer.style.opacity = '1';
+            uiContainer.style.pointerEvents = 'auto';
+
+            if(!isRunning) btnReset.click();
+        });
+
+        btnToggleSound.addEventListener('click', () => {
+            CONFIG.soundEnabled = !CONFIG.soundEnabled;
+            if (CONFIG.soundEnabled) {
+                btnToggleSound.innerHTML = "Suono: ATTIVO 🔊";
+                btnToggleSound.style.background = "rgba(255, 255, 255, 0.08)";
+                playChime(); 
+            } else {
+                btnToggleSound.innerHTML = "Suono: MUTO 🔇";
+                btnToggleSound.style.background = "rgba(255, 50, 50, 0.3)";
+            }
+        });
+
+        /* =========================================================
+           4. SCENA 3D AVANZATA (Senza stelle)
+           ========================================================= */
+        let changeColor, update3DShape;
+
+        try {
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x010104, 0.012);
+
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 6;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+            container.appendChild(renderer.domElement);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableZoom = false; 
+            controls.enablePan = false;  
+            controls.enableDamping = true; 
+            controls.dampingFactor = 0.05;
+
+            // Oggetto Centrale
+            let crystalGeom = new THREE.OctahedronGeometry(1.8, 1); 
+            const material = new THREE.MeshPhysicalMaterial({ 
+                color: CONFIG.colorStudy,
+                metalness: 0.1,
+                roughness: 0.1,
+                transmission: 0.9, 
+                ior: 1.5,           
+                thickness: 0.5,
+                emissive: CONFIG.colorStudy,
+                emissiveIntensity: 0.2
+            });
+            let crystal = new THREE.Mesh(crystalGeom, material);
+            scene.add(crystal);
+
+            update3DShape = function(shapeType) {
+                scene.remove(crystal);
+                crystalGeom.dispose(); 
+
+                if (shapeType === 'cube') {
+                    crystalGeom = new THREE.BoxGeometry(2.2, 2.2, 2.2);
+                } else if (shapeType === 'sphere') {
+                    crystalGeom = new THREE.SphereGeometry(1.6, 32, 32);
+                } else {
+                    crystalGeom = new THREE.OctahedronGeometry(1.8, 1);
+                }
+                
+                crystal = new THREE.Mesh(crystalGeom, material);
+                scene.add(crystal);
+            };
+
+            // Anelli Rotanti
+            const ringGeom = new THREE.TorusGeometry(2.8, 0.02, 16, 100);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+            const ring1 = new THREE.Mesh(ringGeom, ringMat);
+            const ring2 = new THREE.Mesh(ringGeom, ringMat);
+            ring2.rotation.x = Math.PI / 2;
+            scene.add(ring1);
+            scene.add(ring2);
+
+            // Polvere Fluttuante (Mantenuta per profondità)
+            const dustGeometry = new THREE.BufferGeometry();
+            const dustCount = 1000;
+            const dustPos = new Float32Array(dustCount * 3);
+            for(let i = 0; i < dustCount * 3; i+=3) {
+                dustPos[i] = (Math.random() - 0.5) * 15;
+                dustPos[i+1] = (Math.random() - 0.5) * 15;
+                dustPos[i+2] = (Math.random() - 0.5) * 15 - 2;
+            }
+            dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+            const dustMaterial = new THREE.PointsMaterial({
+                size: 0.03, color: 0xffffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending
+            });
+            const dustMesh = new THREE.Points(dustGeometry, dustMaterial);
+            scene.add(dustMesh);
+
+            // Luci Centrali
+            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+            const orbitLight1 = new THREE.PointLight(CONFIG.colorStudy, 3, 20);
+            scene.add(orbitLight1);
+            const orbitLight2 = new THREE.PointLight(0xffffff, 1.5, 20);
+            scene.add(orbitLight2);
+
+            let targetColor = new THREE.Color(CONFIG.colorStudy);
+            changeColor = function(hexColor) {
+                targetColor.setHex(hexColor);
+            };
+
+            const clock = new THREE.Clock();
+
+            function animate() {
+                requestAnimationFrame(animate);
+                const elapsedTime = clock.getElapsedTime();
+
+                controls.update(); 
+
+                crystal.rotation.x += 0.002;
+                crystal.rotation.y += 0.005;
+                crystal.position.y = Math.sin(elapsedTime * 0.8) * 0.15; 
+
+                ring1.rotation.y = elapsedTime * 0.2;
+                ring1.rotation.x = Math.sin(elapsedTime * 0.1) * 0.5;
+                ring2.rotation.y = -elapsedTime * 0.15;
+                ring2.rotation.z = Math.cos(elapsedTime * 0.1) * 0.5;
+
+                orbitLight1.position.x = Math.sin(elapsedTime) * 3;
+                orbitLight1.position.z = Math.cos(elapsedTime) * 3;
+                orbitLight1.position.y = Math.sin(elapsedTime * 0.5) * 2;
+
+                orbitLight2.position.x = Math.cos(elapsedTime * 0.8) * 4;
+                orbitLight2.position.z = Math.sin(elapsedTime * 0.8) * 4;
+                orbitLight2.position.y = Math.cos(elapsedTime * 0.4) * 2;
+
+                dustMesh.rotation.y = elapsedTime * 0.015;
+                dustMesh.rotation.x = elapsedTime * 0.005;
+
+                material.color.lerp(targetColor, 0.03);
+                material.emissive.lerp(targetColor, 0.03);
+                orbitLight1.color.lerp(targetColor, 0.03);
+
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+        } catch (error) {
+            console.error("Errore 3D:", error);
+        }
+    </script>
+</body>
+</html>
